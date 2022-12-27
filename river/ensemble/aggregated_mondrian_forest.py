@@ -1,16 +1,22 @@
+import numpy as np
+
 from river.tree.mondrian_tree_classifier import MondrianTreeClassifier
 from river.tree.nodes.mondriantree_nodes import *
+
+from abc import ABC, abstractmethod
+
+import pandas as pd
 
 spec_amf_learner = [
     ("n_features", uint32),
     ("n_estimators", uint32),
     ("step", float32),
     ("loss", None),
-    ("use_aggregation", np.bool),
-    ("split_pure", np.bool),
+    ("use_aggregation", bool),
+    ("split_pure", bool),
     ("n_jobs", uint32),
     ("n_samples_increment", uint32),
-    ("verbose", np.bool),
+    ("verbose", bool),
     ("samples", SamplesCollection),
     ("iteration", uint32),
 ]
@@ -22,7 +28,7 @@ spec_amf_classifier = spec_amf_learner + [
 ]
 
 
-class AMFLearner(object):
+class AMFLearner(ABC):
     """Base class for Aggregated Mondrian Forest classifier and regressors for online
     learning.
 
@@ -135,6 +141,14 @@ class AMFLearner(object):
 
         self._partial_fit(X, y)
         return self
+
+    @abstractmethod
+    def _partial_fit(self, X,y):
+        pass
+
+    @abstractmethod
+    def _compute_weighted_depths(self, X):
+        pass
 
     # TODO: such methods should be private
     def predict_helper(self, X):
@@ -518,7 +532,7 @@ def dict_to_amf_classifier_nopython(d):
         tree = trees[n_estimator]
         nodes = tree.nodes
         # Copy node information
-        dict_to_nodes_classifier(nodes, nodes_dict)
+        nodes.dict_to_nodes_classifier(nodes_dict)
         # Copy intensities
         tree.intensities[:] = tree_dict["intensities"]
 
@@ -825,6 +839,9 @@ class AMFClassifier(AMFLearner):
                 tree.partial_fit(i)
             self.no_python.iteration += 1
 
+    def _compute_weighted_depths(self, X):
+        pass
+
     def partial_fit(self, X, y, classes=None):
         """Updates the classifier with the given batch of samples.
 
@@ -931,7 +948,6 @@ class AMFClassifier(AMFLearner):
             return scores
 
     def get_nodes_df(self, idx_tree):
-        import pandas as pd
 
         tree = self.no_python.trees[idx_tree]
         nodes = tree.nodes

@@ -1,8 +1,3 @@
-import collections
-import functools
-import io
-import math
-import typing
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -66,3 +61,64 @@ class MondrianTree(ABC):
         self.n_nodes = n_nodes
         self.n_nodes_capacity = n_nodes_capacity
         self.intensities = np.empty(n_features, dtype=np.float32)
+        self.nodes = None # Note: this variable should be initialized with "init_nodes" that has to be overriden in the herited class
+
+    @abstractmethod
+    def init_nodes(self):
+        """
+        initialize the nodes
+        """
+        pass
+
+    def node_compute_range_extension(self, idx_node, x_t, extensions):
+        extensions_sum = 0
+        for j in range(self.n_features):
+            x_tj = x_t[j]
+            feature_min_j, feature_max_j = self.node_range(idx_node, j)
+            if x_tj < feature_min_j:
+                diff = feature_min_j - x_tj
+            elif x_tj > feature_max_j:
+                diff = x_tj - feature_max_j
+            else:
+                diff = 0
+            extensions[j] = diff
+            extensions_sum += diff
+        return extensions_sum
+
+    def node_update_depth(self, idx_node, depth):
+        depth += 1
+        self.nodes.depth[idx_node] = depth
+        if self.nodes.is_leaf[idx_node]:
+            return
+        else:
+            left = self.nodes.left[idx_node]
+            right = self.nodes.right[idx_node]
+            self.node_update_depth(left, depth)
+            self.node_update_depth(right, depth)
+
+    def node_get_child(self, idx_node, x_t):
+        feature = self.nodes.feature[idx_node]
+        threshold = self.nodes.threshold[idx_node]
+        if x_t[feature] <= threshold:
+            return self.nodes.left[idx_node]
+        else:
+            return self.nodes.right[idx_node]
+
+    def node_update_weight_tree(self, idx_node):
+        if self.nodes.is_leaf[idx_node]:
+            self.nodes.log_weight_tree[idx_node] = self.nodes.weight[idx_node]
+        else:
+            left = self.nodes.left[idx_node]
+            right = self.nodes.right[idx_node]
+            weight = self.nodes.weight[idx_node]
+            log_weight_tree = self.nodes.log_weight_tree
+            log_weight_tree[idx_node] = log_sum_2_exp(
+                weight, log_weight_tree[left] + log_weight_tree[right]
+            )
+
+    def node_range(self, idx_node, j):
+        # TODO: do the version without memory...
+        return (
+            self.nodes.memory_range_min[idx_node, j],
+            self.nodes.memory_range_max[idx_node, j],
+        )
