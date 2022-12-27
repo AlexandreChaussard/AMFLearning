@@ -1,9 +1,7 @@
-from abc import ABC, abstractmethod
-
-import numpy as np
+from abc import abstractmethod
 
 from river.tree.nodes.mondriantree_nodes import *
-from river.tree.nodes.mondriantree_utils import SamplesCollection
+from river.utils.mondriantree_samples import SamplesCollection
 
 spec_tree = [
     ("n_features", uint32),
@@ -61,7 +59,9 @@ class MondrianTree(ABC):
         self.n_nodes = n_nodes
         self.n_nodes_capacity = n_nodes_capacity
         self.intensities = np.empty(n_features, dtype=np.float32)
-        self.nodes = None # Note: this variable should be initialized with "init_nodes" that has to be overriden in the herited class
+
+        # nodes should be initialized with "init_nodes" that has to be overriden in the herited class
+        self.nodes = None
 
     @abstractmethod
     def init_nodes(self):

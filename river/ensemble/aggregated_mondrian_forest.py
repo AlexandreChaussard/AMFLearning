@@ -1,7 +1,7 @@
 import numpy as np
 
 from river.tree.mondrian_tree_classifier import MondrianTreeClassifier
-from river.tree.nodes.mondriantree_nodes import *
+from river.utils.mondriantree_samples import *
 
 from abc import ABC, abstractmethod
 
@@ -622,7 +622,7 @@ class AMFClassifierNoPython(AMFNoPython):
         d = {}
         for key, _ in spec_amf_classifier:
             if key == "samples":
-                d["samples"] = samples_collection_to_dict(self.samples)
+                d["samples"] = self.samples.samples_collection_to_dict()
             elif key == "trees":
                 d["trees"] = [tree.serialize() for tree in self.trees]
             else:
@@ -832,7 +832,7 @@ class AMFClassifier(AMFLearner):
         # First, we save the new batch of data
         n_samples_before = self.no_python.samples.n_samples
         # Add the samples in the forest
-        add_samples(self.no_python.samples, X, y)
+        self.no_python.samples.add_samples(X, y)
         for i in range(n_samples_before, n_samples_before + n_samples_batch):
             # Then we fit all the trees using all new samples
             for tree in self.no_python.trees:

@@ -1,4 +1,4 @@
-from river.tree.nodes.mondriantree_utils import *
+from river.utils.mondrian_utils import *
 from abc import ABC
 
 spec_nodes = [

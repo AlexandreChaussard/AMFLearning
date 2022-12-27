@@ -1,11 +1,10 @@
-import numpy as np
 from numpy.random import uniform
 
 from river.tree.mondrian_tree import MondrianTree
 from river.tree.mondrian_tree import spec_tree
 
 from river.tree.nodes.mondriantree_nodes import *
-from river.tree.nodes.mondriantree_utils import *
+from river.utils.mondriantree_samples import *
 
 spec_tree_classifier = spec_tree + [
     ("n_classes", uint32),
@@ -347,7 +346,7 @@ class MondrianTreeClassifier(MondrianTree):
         # First, we save the new batch of data
         n_samples_before = self.samples.n_samples
         # Add the samples in the forest
-        add_samples(self.samples, X, y)
+        self.samples.add_samples(X, y)
         for i in range(n_samples_before, n_samples_before + n_samples_batch):
             # Then we fit the tree using all new samples
             self.partial_fit(i)
