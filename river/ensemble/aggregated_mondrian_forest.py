@@ -5,6 +5,7 @@ from river.utils.mondriantree_samples import *
 
 from abc import ABC, abstractmethod
 
+from river.base.classifier import MiniBatchClassifier
 import pandas as pd
 
 spec_amf_learner = [
@@ -143,7 +144,7 @@ class AMFLearner(ABC):
         return self
 
     @abstractmethod
-    def _partial_fit(self, X,y):
+    def _partial_fit(self, X, y):
         pass
 
     @abstractmethod
@@ -153,8 +154,7 @@ class AMFLearner(ABC):
     # TODO: such methods should be private
     def predict_helper(self, X):
         """Helper method for the predictions of the given features vectors. This is used
-        in the ``predict`` and ``predict_proba`` methods of ``AMFRegressor`` and
-        ``AMFClassifier``.
+        in the ``predict`` and ``predict_proba`` methods.
 
         Parameters
         ----------
@@ -630,7 +630,7 @@ class AMFClassifierNoPython(AMFNoPython):
         return d
 
 
-class AMFClassifier(AMFLearner):
+class AMFClassifier(AMFLearner, MiniBatchClassifier):
     """Aggregated Mondrian Forest classifier for online learning. This algorithm
     is truly online, in the sense that a single pass is performed, and that predictions
     can be produced anytime.
@@ -842,6 +842,14 @@ class AMFClassifier(AMFLearner):
     def _compute_weighted_depths(self, X):
         pass
 
+    def learn_one(self, x: dict, y):
+        # TODO: (River) Implement that function based on the `partial_fit`
+        pass
+
+    def learn_many(self, X: "pd.DataFrame", y: "pd.Series") -> "MiniBatchClassifier":
+        # TODO: (River) Implement that function instead of `partial_fit`
+        return self
+
     def partial_fit(self, X, y, classes=None):
         """Updates the classifier with the given batch of samples.
 
@@ -884,6 +892,14 @@ class AMFClassifier(AMFLearner):
         n_samples, n_features = X.shape
         scores = self._predict_proba(X)
         return scores
+
+    def predict_proba_one(self, x: dict):
+        # TODO: (River) Implementation that function based on `predict_proba` function
+        pass
+
+    def predict_proba_many(self, X: "pd.DataFrame") -> "pd.DataFrame":
+        # TODO: (River) Implement that function using the `predict_proba` function
+        pass
 
     def predict_proba(self, X):
         """Predicts the class probabilities for the given features vectors.
