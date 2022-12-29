@@ -9,11 +9,23 @@ from river.tree.base import Branch
 
 
 class MondrianTreeLeaf(Leaf, ABC):
-    """In a Mondrian Tree, a node is defined by its index, its parent index (can be itself) and its creation time.
+    """In a Mondrian Tree, a node is defined by its index, its parent index (can be None) and its creation time.
        The index is given by the tree, while the parent index and the creation time are variables of the node
     """
 
     def __init__(self, parent, n_features, time: float):
+        """
+
+        Parameters
+        ----------
+        parent: MondrianTreeLeaf
+            Parent Node
+        n_features: int
+            Number of features of the input data
+        time: float
+            Split time of the node for Mondrian process
+        """
+
         super().__init__()
 
         # Generic Node attributes
@@ -33,7 +45,17 @@ class MondrianTreeLeaf(Leaf, ABC):
         self.memory_range_max = [0] * n_features
 
     def copy(self, node):
-        """Copies the node into the current one."""
+        """
+        Copies the node into the current one.
+        Parameters
+        ----------
+        node: MondrianTreeLeaf
+            Origin node to copy data from
+
+        Returns
+        -------
+
+        """
         self.is_leaf = node.is_leaf
         self.depth = node.depth
         self.parent = node.parent
@@ -46,14 +68,43 @@ class MondrianTreeLeaf(Leaf, ABC):
         self.time = node.time
 
     def set_left(self, node):
+        """
+        Set the left child node
+        Parameters
+        ----------
+        node: MondrianTreeLeaf
+
+        Returns
+        -------
+
+        """
         self._left = node
 
     def set_right(self, node):
+        """
+        Set the right child node
+        Parameters
+        ----------
+        node
+
+        Returns
+        -------
+
+        """
         self._right = node
 
     @abstractmethod
     def _get_child_node(self, node):
-        """get the child node and initialize it otherwise"""
+        """
+        Get the child node and initialize it with default value if None exist
+        Parameters
+        ----------
+        node: MondrianTreeLeaf
+
+        Returns
+        -------
+
+        """
 
     def get_left(self):
         """Get the left child"""
@@ -63,7 +114,17 @@ class MondrianTreeLeaf(Leaf, ABC):
         """Get the right child"""
         return self._get_child_node(self._right)
 
-    def set_depth(self, depth):
+    def update_depth(self, depth: int):
+        """
+        Update the depth of the current node with the given depth
+        Parameters
+        ----------
+        depth: int
+
+        Returns
+        -------
+
+        """
         depth += 1
         self.depth = depth
 
@@ -74,10 +135,16 @@ class MondrianTreeLeaf(Leaf, ABC):
         self._left = self.get_left()
         self._right = self.get_right()
 
-        self._left.set_depth(depth)
-        self._right.set_depth(depth)
+        self._left.update_depth(depth)
+        self._right.update_depth(depth)
 
     def update_weight_tree(self):
+        """
+        Updates the weight of the node in the tree
+        Returns
+        -------
+
+        """
         if self.is_leaf:
             self.log_weight_tree = self.weight
         else:
@@ -89,12 +156,12 @@ class MondrianTreeLeaf(Leaf, ABC):
                 weight, left.log_weight_tree + right.log_weight_tree
             )
 
-    def get_child(self, x):
+    def get_child(self, x: dict):
         """
         Get child node classifying x properly
         Parameters
         ----------
-        x:
+        x: dict
             sample to classify
 
         Returns
@@ -119,25 +186,35 @@ class MondrianTreeLeafClassifier(MondrianTreeLeaf):
         self.counts = np.zeros(n_classes)
 
     def _get_child_node(self, node):
+        """
+        Get the child node and initialize if none exists.
+        Parameters
+        ----------
+        node: MondrianTreeLeafClassifier
+
+        Returns
+        -------
+
+        """
         if node is None:
             node = MondrianTreeLeafClassifier(self, self.n_features, 0, self.n_classes)
             node.is_leaf = True
             node.depth = self.depth + 1
         return node
 
-    def score(self, sample_class, dirichlet):
+    def score(self, sample_class: int, dirichlet: float):
         """Computes the score of the node
 
         Parameters
         ----------
-        dirichlet : `float`
-
-        sample_class : `int`
+        sample_class : int
             Class for which we want the score
+
+        dirichlet : float
 
         Returns
         -------
-        output : `float32`
+        output : float
             The log-loss of the node
 
         Notes
@@ -150,16 +227,53 @@ class MondrianTreeLeafClassifier(MondrianTreeLeaf):
         # We use the Jeffreys prior with dirichlet parameter
         return (count + dirichlet) / (self.n_samples + dirichlet * n_classes)
 
-    def predict(self, dirichlet, scores):
+    def predict(self, dirichlet: float, scores: dict):
+        """
+        Predict the scores of all classes
+        Parameters
+        ----------
+        dirichlet: float
+        scores: float
+            Dictionary of scores to be updated with the scores values
+
+        Returns
+        -------
+
+        """
         for c in range(self.n_classes):
             scores[c] = self.score(c, dirichlet)
         return scores
 
     def loss(self, sample_class, dirichlet):
+        """
+        Computes the loss of the node
+        Parameters
+        ----------
+        sample_class: int
+            A given class of the problem
+        dirichlet
+
+        Returns
+        -------
+
+        """
         sc = self.score(sample_class, dirichlet)
         return -np.log(sc)
 
     def update_weight(self, sample_class, dirichlet, use_aggregation, step):
+        """
+        Update the weight of the node given a class and the method used
+        Parameters
+        ----------
+        sample_class
+        dirichlet
+        use_aggregation
+        step
+
+        Returns
+        -------
+
+        """
         loss_t = self.loss(sample_class, dirichlet)
         if use_aggregation:
             self.weight -= step * loss_t
@@ -175,8 +289,7 @@ class MondrianTreeLeafClassifier(MondrianTreeLeaf):
         return n_samples == count
 
     def update_downwards(self, x_t, sample_class, dirichlet, use_aggregation, step, do_update_weight):
-        # If it is the first sample, we copy the features vector into the min and
-        # max range
+        # If it is the first sample, we copy the features vector into the min and max range
         if self.n_samples == 0:
             for j in range(self.n_features):
                 x_tj = x_t[j]
@@ -191,19 +304,15 @@ class MondrianTreeLeafClassifier(MondrianTreeLeaf):
                 if x_tj > self.memory_range_max[j]:
                     self.memory_range_max[j] = x_tj
 
-        # TODO: we should save the sample here and do a bunch of stuff about
-        #  memorization
         # One more sample in the node
         self.n_samples += 1
 
         if do_update_weight:
-            # TODO: Using x_t and y_t should be better...
             self.update_weight(sample_class, dirichlet, use_aggregation, step)
 
         self.update_count(sample_class)
 
     def range(self, j):
-        # TODO: do the version without memory...
         return (
             self.memory_range_min[j],
             self.memory_range_max[j],
