@@ -2,6 +2,7 @@ import numpy as np
 
 from river.tree.mondrian_tree_classifier_riverlike import MondrianTreeClassifier
 from river.utils.mondriantree_samples import *
+from river.utils.data_conversion import *
 
 from abc import ABC, abstractmethod
 
@@ -96,7 +97,6 @@ class AMFLearner(ABC):
 
         n_samples, n_features = X.shape
 
-        self._extra_y_test(y)
         # This is the first call to `partial_fit`, so we need to instantiate
         # the no python class
         if self.no_python is None:
@@ -170,9 +170,6 @@ class AMFLearner(ABC):
         return weighted_depths
 
     def _compute_predictions(self, X):
-        pass
-
-    def _extra_y_test(self, y):
         pass
 
     def _instantiate_nopython_class(self):
@@ -553,14 +550,12 @@ class AMFClassifier(AMFLearner, MiniBatchClassifier):
         )
 
     def _partial_fit(self, X, y):
-        print("Partial fit running...")
         n_samples_batch, n_features = X.shape
         # First, we save the new batch of data
         n_samples_before = self.no_python.samples.n_samples
         # Add the samples in the forest
         self.no_python.samples.add_samples(X, y)
         for i in range(n_samples_before, n_samples_before + n_samples_batch):
-            print(f"Tree {i} is fitting...")
             # Then we fit all the trees using all new samples
             for tree in self.no_python.trees:
                 tree.partial_fit(i)
@@ -570,12 +565,14 @@ class AMFClassifier(AMFLearner, MiniBatchClassifier):
         pass
 
     def learn_one(self, x: dict, y):
-        # TODO: (River) Implement that function based on the `partial_fit`
-        pass
+        X_numpy = dict2numpy(x)
+        y_numpy = np.array([y])
+        return self.partial_fit_helper(X_numpy, y_numpy)
 
     def learn_many(self, X: "pd.DataFrame", y: "pd.Series") -> "MiniBatchClassifier":
-        # TODO: (River) Implement that function instead of `partial_fit`
-        return self
+        X_numpy = X.to_numpy()
+        y_numpy = y.to_numpy()
+        return self.partial_fit_helper(X_numpy, y_numpy)
 
     def partial_fit(self, X, y, classes=None):
         """Updates the classifier with the given batch of samples.
@@ -739,4 +736,4 @@ class AMFClassifier(AMFLearner, MiniBatchClassifier):
         pass
 
     def __repr__(self):
-        pass
+        return f"AMFClassifier[n_classes={self.n_classes}; n_features={self.n_features}; n_models={self.n_estimators}]"

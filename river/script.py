@@ -4,6 +4,9 @@ from sklearn.datasets import make_blobs
 
 from river.ensemble.amf_riverlike import AMFClassifier as AMFRiverLikeClassifier
 
+import pandas as pd
+from river.utils import data_conversion
+
 X, y = make_blobs(200, 2, random_state=1)
 
 
@@ -44,11 +47,26 @@ amf = AMFRiverLikeClassifier(
     random_state=1,
 )
 
-amf.partial_fit_helper(X_train, y_train)
+
+def learn_one_approach():
+    for i in range(0, len(X_train)):
+        x_t = data_conversion.numpy2dict(np.array([X[i]]))
+        y_t = y_train[i]
+        amf.learn_one(x_t, y_t)
+
+
+def learn_many_approach():
+    X_df = pd.DataFrame(X_train)
+    y_serie = pd.Series(y_train)
+    amf.learn_many(X_df, y_serie)
+
+
+learn_many_approach()
 
 y_pred = amf.predict_proba(X_test)
 print(y_pred)
 y_pred = np.argmax(y_pred, axis=1)
+print(y_pred)
 plot_classes(X_test, y_pred, X, y, "Predicted classes - River")
 
 plt.show()
