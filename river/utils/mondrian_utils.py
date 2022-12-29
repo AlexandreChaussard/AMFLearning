@@ -1,7 +1,6 @@
 import numpy as np
 from numpy import float32
 from numpy import uint32
-from numpy import uint8
 
 
 def sample_discrete(distribution):

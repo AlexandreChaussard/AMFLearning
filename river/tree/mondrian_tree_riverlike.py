@@ -1,18 +1,6 @@
 from abc import ABC, abstractmethod
 
 from river.tree.nodes.mondrian_tree_nodes_riverlike import *
-from river.utils.mondriantree_samples import SamplesCollection
-
-spec_tree = [
-    ("n_features", uint32),
-    ("step", float32),
-    ("loss", None),
-    ("use_aggregation", bool),
-    ("split_pure", bool),
-    ("samples", SamplesCollection),
-    ("intensities", np.array),
-    ("iteration", uint32),
-]
 
 
 class MondrianTree(ABC):
@@ -41,7 +29,6 @@ class MondrianTree(ABC):
             loss,
             use_aggregation: bool,
             split_pure: bool,
-            samples: SamplesCollection,
             iteration: int,
     ):
         # Properties common to all the Mondrian Trees
@@ -50,8 +37,6 @@ class MondrianTree(ABC):
         self.loss = loss
         self.use_aggregation = use_aggregation
         self.split_pure = split_pure
-        self.samples = samples
         self.iteration = iteration
         self.intensities = np.empty(n_features, dtype=np.float32)
         self.tree = None
-
