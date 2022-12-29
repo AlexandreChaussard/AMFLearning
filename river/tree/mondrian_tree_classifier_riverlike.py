@@ -1,3 +1,4 @@
+import pandas as pd
 from numpy.random import uniform
 
 from river.tree.mondrian_tree_riverlike import MondrianTree
@@ -34,7 +35,6 @@ class MondrianTreeClassifier(MondrianTree):
             use_aggregation: bool,
             dirichlet: float,
             split_pure: bool,
-            samples: type(SamplesCollection),
             iteration: int,
     ):
 
@@ -44,45 +44,42 @@ class MondrianTreeClassifier(MondrianTree):
             loss=loss,
             use_aggregation=use_aggregation,
             split_pure=split_pure,
-            samples=samples,
             iteration=iteration,
         )
         self.n_classes = n_classes
         self.dirichlet = dirichlet
         self.tree = MondrianTreeBranchClassifier(MondrianTreeLeafClassifier(None, self.n_features, 0.0, self.n_classes))
 
-    def score(self, node: MondrianTreeLeafClassifier, indx_class: int):
-        return node.score(indx_class, self.dirichlet)
+        # Training attributes
+        # The current sample being proceeded
+        self._x = None
+        # The current label being proceeded
+        self._y = None
+
+    def score(self, node: MondrianTreeLeafClassifier):
+        return node.score(self._y, self.dirichlet)
 
     def predict(self, node: MondrianTreeLeafClassifier, scores):
         return node.predict(self.dirichlet, scores)
 
-    def loss(self, node: MondrianTreeLeafClassifier, indx_sample: int):
-        c = self.samples.labels[indx_sample]
-        return node.loss(c, self.dirichlet)
+    def loss(self, node: MondrianTreeLeafClassifier):
+        return node.loss(self._y, self.dirichlet)
 
-    def update_weight(self, node: MondrianTreeLeafClassifier, indx_sample: int):
-        c = self.samples.labels[indx_sample]
-        return node.update_weight(c, self.dirichlet, self.use_aggregation, self.step)
+    def update_weight(self, node: MondrianTreeLeafClassifier):
+        return node.update_weight(self._y, self.dirichlet, self.use_aggregation, self.step)
 
-    def update_count(self, node: MondrianTreeLeafClassifier, indx_sample: int):
-        c = self.samples.labels[indx_sample]
-        return node.update_count(c)
+    def update_count(self, node: MondrianTreeLeafClassifier):
+        return node.update_count(self._y)
 
-    def update_downwards(self, node: MondrianTreeLeafClassifier, indx_sample, do_update_weight):
-        x_t = self.samples.features[indx_sample]
-        c = self.samples.labels[indx_sample]
-        return node.update_downwards(x_t, c, self.dirichlet, self.use_aggregation, self.step, do_update_weight)
+    def update_downwards(self, node: MondrianTreeLeafClassifier, do_update_weight):
+        return node.update_downwards(self._x, self._y, self.dirichlet, self.use_aggregation, self.step, do_update_weight)
 
-    def compute_split_time(self, node: MondrianTreeLeafClassifier, idx_sample):
-        y_t = self.samples.labels[idx_sample]
-
+    def compute_split_time(self, node: MondrianTreeLeafClassifier):
         #  Don't split if the node is pure: all labels are equal to the one of y_t
-        if not self.split_pure and node.is_dirac(y_t):
+        if not self.split_pure and node.is_dirac(self._y):
             return 0.0
 
-        x_t = self.samples.features[idx_sample]
-        extensions_sum = node.range_extension(x_t, self.intensities)
+        extensions_sum = node.range_extension(self._x, self.intensities)
         # If x_t extends the current range of the node
         if extensions_sum > 0:
             # Sample an exponential with intensity = extensions_sum
@@ -148,22 +145,21 @@ class MondrianTreeClassifier(MondrianTree):
         node.threshold = threshold
         node.is_leaf = False
 
-    def go_downwards(self, idx_sample):
+    def go_downwards(self):
         # We update the nodes along the path which leads to the leaf containing
         # x_t. For each node on the path, we consider the possibility of
         # splitting it, following the Mondrian process definition.
         current_node = self.tree.parent
-        x_t = self.samples.features[idx_sample]
 
         if self.iteration == 0:
             # If it's the first iteration, we just put x_t in the range of root
-            self.update_downwards(current_node, idx_sample, False)
+            self.update_downwards(current_node, False)
             return current_node
         else:
             while True:
                 # If it's not the first iteration (otherwise the current node
                 # is root with no range), we consider the possibility of a split
-                split_time = self.compute_split_time(current_node, idx_sample)
+                split_time = self.compute_split_time(current_node)
 
                 if split_time > 0:
                     # We split the current node: because the current node is a
@@ -174,7 +170,7 @@ class MondrianTreeClassifier(MondrianTree):
                     # Sample the feature at random with a probability
                     # proportional to the range extensions
                     feature = sample_discrete(self.intensities)
-                    x_tf = x_t[feature]
+                    x_tf = self._x[feature]
                     # Is it a right extension of the node ?
                     range_min, range_max = current_node.range(feature)
                     is_right_extension = x_tf > range_max
@@ -192,7 +188,7 @@ class MondrianTreeClassifier(MondrianTree):
                     )
 
                     # Update the current node
-                    self.update_downwards(current_node, idx_sample, True)
+                    self.update_downwards(current_node, True)
 
                     left = current_node.get_left()
                     right = current_node.get_right()
@@ -210,16 +206,16 @@ class MondrianTreeClassifier(MondrianTree):
                     # This is the leaf containing the sample point (we've just
                     # splitted the current node with the data point)
                     leaf = current_node
-                    self.update_downwards(leaf, idx_sample, False)
+                    self.update_downwards(leaf, False)
                     return leaf
                 else:
                     # There is no split, so we just update the node and go to
                     # the next one
-                    self.update_downwards(current_node, idx_sample, True)
+                    self.update_downwards(current_node, True)
                     if current_node.is_leaf:
                         return current_node
                     else:
-                        current_node = current_node.get_child(x_t)
+                        current_node = current_node.get_child(self._x)
 
     def go_upwards(self, leaf: MondrianTreeLeafClassifier):
         current_node = leaf
@@ -233,21 +229,26 @@ class MondrianTreeClassifier(MondrianTree):
                 # We go up to the root in the tree
                 current_node = current_node.parent
 
-    def partial_fit(self, idx_sample):
-        leaf = self.go_downwards(idx_sample)
+    def partial_fit(self):
+        leaf = self.go_downwards()
         if self.use_aggregation:
             self.go_upwards(leaf)
         self.iteration += 1
 
-    def learn_many(self, X, y):
-        n_samples_batch, n_features = X.shape
-        # First, we save the new batch of data
-        n_samples_before = self.samples.n_samples
+    def learn_one(self, x: dict, y: int):
+        self._x = list(x.values())
+        self._y = y
+        self.partial_fit()
+        self.iteration += 1
+        return self
+
+    def learn_many(self, X: pd.DataFrame, y: pd.Series):
         # Add the samples in the forest
-        self.samples.add_samples(X, y)
-        for i in range(n_samples_before, n_samples_before + n_samples_batch):
+        for i in range(y.size):
             # Then we fit the tree using all new samples
-            self.partial_fit(i)
+            self._x = X.iloc[i].to_numpy()
+            self._y = y.iloc[i].to_numpy()[0]
+            self.partial_fit()
             self.iteration += 1
         return self
 

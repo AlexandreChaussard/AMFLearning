@@ -1,13 +1,9 @@
-import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.datasets import make_blobs
+import numpy as np
 
-from river.ensemble.amf_riverlike import AMFClassifier as AMFRiverLikeClassifier
+from river.ensemble.amf_riverlike import AMFClassifier
 
-import pandas as pd
-from river.utils import data_conversion
-
-X, y = make_blobs(200, 2, random_state=1)
+from river.datasets import Bananas
 
 
 def plot_classes(X_test, y_test, X_train, y_train, title=None):
@@ -31,42 +27,58 @@ def plot_classes(X_test, y_test, X_train, y_train, title=None):
         fig.suptitle(title)
 
 
-indexes = np.arange(0, len(X), 1)
-np.random.shuffle(indexes)
-index_train, index_test = indexes[0:len(X) // 2], indexes[len(X) // 2:]
+def plot_dataset(stream):
+    X, y = [], []
 
-X_train, y_train, X_test, y_test = X[index_train], y[index_train], X[index_test], y[index_test]
+    for x_t, y_t in stream:
+        x_array = []
+        for k in x_t:
+            x_array.append(x_t[k])
+        X.append(x_array)
+        y.append(int(y_t))
 
-amf = AMFRiverLikeClassifier(
-    n_classes=len(np.unique(y)),
-    n_estimators=10,
-    step=1.0,
-    loss="log",
-    use_aggregation=True,
-    dirichlet=0.1,
-    random_state=1,
-)
+    X, y = np.array(X), np.array(y)
+    plot_classes(X, y, X, y, title="Banana Dataset")
+    return X, y
 
 
-def learn_one_approach():
-    for i in range(0, len(X_train)):
-        x_t = data_conversion.numpy2dict(np.array([X[i]]))
-        y_t = y_train[i]
-        amf.learn_one(x_t, y_t)
+stream = Bananas()
 
+# Plotting the Banana dataset
+X, y = plot_dataset(stream)
 
-def learn_many_approach():
-    X_df = pd.DataFrame(X_train)
-    y_serie = pd.Series(y_train)
-    amf.learn_many(X_df, y_serie)
+# Learning time
 
+total_samples = 600  # set the amount of samples to iterate through
+proportion_training = 0.8  # proportion of training samples
 
-learn_many_approach()
+train_samples = proportion_training * total_samples  # set the amount of learning samples
+test_samples = (1 - proportion_training) * total_samples  # set the amount of test samples
 
-y_pred = amf.predict_proba(X_test)
-print(y_pred)
-y_pred = np.argmax(y_pred, axis=1)
-print(y_pred)
-plot_classes(X_test, y_pred, X, y, "Predicted classes - River")
+X_test, y_test = [], [] # arrays for the plot
+
+amf = AMFClassifier(2, n_estimators=10, step=1.0, use_aggregation=True, dirichlet=0.1)
+
+t = 0
+for x_t, y_t in stream:
+    if t < train_samples:
+        amf.learn_one(x_t, int(y_t))  # learning sample (x_t, y_t)
+    else:
+        scores = amf.predict_proba_one(x_t)
+        label = np.argmax(scores)  # predicting one's class
+
+        x_array = []
+        for k in x_t:
+            x_array.append(x_t[k])
+        X_test.append(x_array)
+        y_test.append(label)
+
+    t += 1
+    if t > total_samples:
+        break
+
+X_test, y_test = np.array(X_test), np.array(y_test)
+
+plot_classes(X_test, y_test, X, y, title="Prediction with AMFClassifier")
 
 plt.show()

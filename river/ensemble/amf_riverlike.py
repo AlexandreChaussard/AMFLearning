@@ -1,7 +1,6 @@
 import numpy as np
 
 from river.tree.mondrian_tree_classifier_riverlike import MondrianTreeClassifier
-from river.utils.mondriantree_samples import *
 from river.utils.data_conversion import *
 
 from abc import ABC, abstractmethod
@@ -27,7 +26,6 @@ class AMFLearner(ABC):
             loss,
             use_aggregation,
             split_pure,
-            n_samples_increment,
             random_state,
     ):
         """Instantiates a `AMFLearner` instance.
@@ -52,14 +50,6 @@ class AMFLearner(ABC):
             split ("pure" nodes). Default is `False`, namely pure nodes are not split,
             but `True` can be sometimes better.
 
-
-        n_samples_increment : :obj:`int`
-            Sets the minimum amount of memory which is pre-allocated each time extra
-            memory is required for new samples and new nodes. Decreasing it can slow
-            down training. If you know that each ``partial_fit`` will be called with
-            approximately `n` samples, you can set n_samples_increment = `n` if `n` is
-            larger than the default.
-
         random_state : :obj:`int` or :obj:`None`
             Controls the randomness involved in the trees.
 
@@ -73,10 +63,22 @@ class AMFLearner(ABC):
         self.loss = loss
         self.use_aggregation = use_aggregation
         self.split_pure = split_pure
-        self.n_samples_increment = n_samples_increment
         self.random_state = random_state
 
-    def partial_fit_helper(self, X, y):
+    def check_nopython(self, x: dict, y: int):
+        n_features = len(x)
+
+        if self.no_python is None:
+            self._n_features = n_features
+            self._instantiate_nopython_class()
+        else:
+            if n_features != self.n_features:
+                raise ValueError(
+                    "`partial_fit` was first called with n_features=%d while "
+                    "n_features=%d in this call" % (self.n_features, n_features)
+                )
+
+    def partial_fit_helper(self, X: pd.DataFrame, y: pd.Series):
         """Updates the classifier with the given batch of samples.
 
         Parameters
@@ -95,7 +97,7 @@ class AMFLearner(ABC):
         """
         # First,ensure that X and y are C-contiguous and with float32 dtype
 
-        n_samples, n_features = X.shape
+        [n_samples, n_features] = X.shape
 
         # This is the first call to `partial_fit`, so we need to instantiate
         # the no python class
@@ -103,7 +105,6 @@ class AMFLearner(ABC):
             self._n_features = n_features
             self._instantiate_nopython_class()
         else:
-            _, n_features = X.shape
             if n_features != self.n_features:
                 raise ValueError(
                     "`partial_fit` was first called with n_features=%d while "
@@ -122,7 +123,7 @@ class AMFLearner(ABC):
         pass
 
     # TODO: such methods should be private
-    def predict_helper(self, X):
+    def predict_helper(self, X: pd.DataFrame):
         """Helper method for the predictions of the given features vectors. This is used
         in the ``predict`` and ``predict_proba`` methods.
 
@@ -138,7 +139,7 @@ class AMFLearner(ABC):
 
         """
 
-        n_samples, n_features = X.shape
+        [n_samples, n_features] = X.shape
         if not self.no_python:
             raise RuntimeError(
                 "You must call `partial_fit` before asking for predictions"
@@ -153,9 +154,9 @@ class AMFLearner(ABC):
         predictions = self._compute_predictions(X)
         return predictions
 
-    def weighted_depth_helper(self, X):
+    def weighted_depth_helper(self, X: pd.DataFrame):
 
-        n_samples, n_features = X.shape
+        [n_samples, n_features] = X.shape
         if not self.no_python:
             raise RuntimeError(
                 "You must call `partial_fit` before asking for weighted depths"
@@ -202,26 +203,6 @@ class AMFLearner(ABC):
                 raise ValueError("`n_estimators` must be >= 1")
             else:
                 self._n_estimators = val
-
-    @property
-    def n_samples_increment(self):
-        """:obj:`int`: Amount of memory pre-allocated each time extra memory is
-        required."""
-        return self._n_samples_increment
-
-    @n_samples_increment.setter
-    def n_samples_increment(self, val):
-        if self.no_python:
-            raise ValueError(
-                "You cannot modify `n_samples_increment` after calling `partial_fit`"
-            )
-        else:
-            if not isinstance(val, int):
-                raise ValueError("`n_samples_increment` must be of type `int`")
-            elif val < 1:
-                raise ValueError("`n_samples_increment` must be >= 1")
-            else:
-                self._n_samples_increment = val
 
     @property
     def step(self):
@@ -321,11 +302,6 @@ class AMFNoPython(object):
             loss,
             use_aggregation,
             split_pure,
-            n_samples_increment,
-            samples: SamplesCollection,
-            trees_iteration,
-            trees_n_nodes,
-            trees_n_nodes_capacity,
     ):
         self.n_features = n_features
         self.n_estimators = n_estimators
@@ -333,8 +309,6 @@ class AMFNoPython(object):
         self.loss = loss
         self.use_aggregation = use_aggregation
         self.split_pure = split_pure
-        self.n_samples_increment = n_samples_increment
-        self.samples = samples
 
 
 class AMFClassifierNoPython(AMFNoPython):
@@ -348,11 +322,7 @@ class AMFClassifierNoPython(AMFNoPython):
             use_aggregation: bool,
             dirichlet: float,
             split_pure: bool,
-            n_samples_increment: int,
-            samples: SamplesCollection,
             trees_iteration,
-            trees_n_nodes,
-            trees_n_nodes_capacity,
     ):
         super().__init__(
             n_features,
@@ -361,11 +331,6 @@ class AMFClassifierNoPython(AMFNoPython):
             loss,
             use_aggregation,
             split_pure,
-            n_samples_increment,
-            samples,
-            trees_iteration,
-            trees_n_nodes,
-            trees_n_nodes_capacity,
         )
         self.n_classes = n_classes
         self.dirichlet = dirichlet
@@ -383,7 +348,6 @@ class AMFClassifierNoPython(AMFNoPython):
                     self.use_aggregation,
                     self.dirichlet,
                     self.split_pure,
-                    self.samples,
                     iteration,
                 )
                 for _ in range(n_estimators)
@@ -399,7 +363,6 @@ class AMFClassifierNoPython(AMFNoPython):
                     self.use_aggregation,
                     self.dirichlet,
                     self.split_pure,
-                    self.samples,
                     trees_iteration[n_estimator],
                 )
                 for n_estimator in range(n_estimators)
@@ -450,7 +413,6 @@ class AMFClassifier(AMFLearner, MiniBatchClassifier):
             use_aggregation=True,
             dirichlet=None,
             split_pure=False,
-            n_samples_increment=1024,
             random_state=None,
     ):
         """Instantiates a `AMFClassifier` instance.
@@ -486,13 +448,6 @@ class AMFClassifier(AMFLearner, MiniBatchClassifier):
             split ("pure" nodes). Default is `False`, namely pure nodes are not split,
             but `True` can be sometimes better.
 
-        n_samples_increment : :obj:`int`, default = 1024
-            Sets the minimum amount of memory which is pre-allocated each time extra
-            memory is required for new samples and new nodes. Decreasing it can slow
-            down training. If you know that each ``partial_fit`` will be called with
-            approximately `n` samples, you can set n_samples_increment = `n` if `n` is
-            larger than the default.
-
         random_state : :obj:`int` or :obj:`None`, default = `None`
             Controls the randomness involved in the trees.
         """
@@ -502,7 +457,6 @@ class AMFClassifier(AMFLearner, MiniBatchClassifier):
             loss=loss,
             use_aggregation=use_aggregation,
             split_pure=split_pure,
-            n_samples_increment=n_samples_increment,
             random_state=random_state
         )
 
@@ -517,7 +471,7 @@ class AMFClassifier(AMFLearner, MiniBatchClassifier):
 
         self._classes = set(range(n_classes))
 
-    def _extra_y_test(self, y):
+    def _extra_y_test(self, y: pd.Series):
         if y.min() < 0:
             raise ValueError("All the values in `y` must be non-negative")
         y_max = y.max()
@@ -530,9 +484,7 @@ class AMFClassifier(AMFLearner, MiniBatchClassifier):
         trees_n_nodes_capacity = np.empty(0, dtype=np.uint32)
         n_samples = 0
         n_samples_capacity = 0
-        samples = SamplesCollection(
-            self.n_samples_increment, self.n_features, n_samples, n_samples_capacity
-        )
+        samples = {"feature": [], "label": []}
         self.no_python = AMFClassifierNoPython(
             self.n_classes,
             self.n_features,
@@ -542,37 +494,31 @@ class AMFClassifier(AMFLearner, MiniBatchClassifier):
             self.use_aggregation,
             self.dirichlet,
             self.split_pure,
-            self.n_samples_increment,
-            samples,
             trees_iteration,
-            trees_n_nodes,
-            trees_n_nodes_capacity,
         )
 
-    def _partial_fit(self, X, y):
-        n_samples_batch, n_features = X.shape
-        # First, we save the new batch of data
-        n_samples_before = self.no_python.samples.n_samples
+    def _partial_fit(self, X: pd.DataFrame, y: pd.Series):
         # Add the samples in the forest
-        self.no_python.samples.add_samples(X, y)
-        for i in range(n_samples_before, n_samples_before + n_samples_batch):
+        for i in range(y.size):
+            x_t = X.iloc[i].to_dict()
+            y_t = y.iloc[i].to_numpy()[0]
             # Then we fit all the trees using all new samples
-            for tree in self.no_python.trees:
-                tree.partial_fit(i)
-            self.no_python.iteration += 1
+            self.learn_one(x_t, y_t)
 
     def _compute_weighted_depths(self, X):
         pass
 
-    def learn_one(self, x: dict, y):
-        X_numpy = dict2numpy(x)
-        y_numpy = np.array([y])
-        return self.partial_fit_helper(X_numpy, y_numpy)
+    def learn_one(self, x: dict, y: int):
+        # Checking the nopython status
+        self.check_nopython(x, y)
+        # we fit all the trees using the new sample
+        for tree in self.no_python.trees:
+            tree.learn_one(x, y)
+        self.no_python.iteration += 1
+        return self
 
     def learn_many(self, X: "pd.DataFrame", y: "pd.Series") -> "MiniBatchClassifier":
-        X_numpy = X.to_numpy()
-        y_numpy = y.to_numpy()
-        return self.partial_fit_helper(X_numpy, y_numpy)
+        return self.partial_fit_helper(X, y)
 
     def partial_fit(self, X, y, classes=None):
         """Updates the classifier with the given batch of samples.
@@ -596,34 +542,43 @@ class AMFClassifier(AMFLearner, MiniBatchClassifier):
         """
         return AMFLearner.partial_fit_helper(self, X, y)
 
-    def _predict_proba(self, X):
+    def _predict_proba(self, X: pd.DataFrame):
 
-        n_samples_batch, _ = X.shape
-        scores = np.zeros((n_samples_batch, self.no_python.n_classes), dtype="float32")
+        [n_samples_batch, _] = X.shape
+        scores = []
 
-        scores_tree = np.empty(self.no_python.n_classes, float32)
+        scores_tree = np.zeros(self.no_python.n_classes)
         for i in range(n_samples_batch):
-            scores_i = scores[i]
-            x_i = X[i]
-            # The prediction is simply the average of the predictions
-            for tree in self.no_python.trees:
-                tree.use_aggregation = self.no_python.use_aggregation
-                scores_i += tree.predict_proba_one(x_i, scores_tree)
-            scores_i /= self.no_python.n_estimators
-        return scores
+            x_i = X.iloc[i].to_dict()
+            scores += self.predict_proba_one(x_i)
+
+        return np.array(scores) # it's not necessary to output a numpy array, though it's more useful in practice for users
 
     def _compute_predictions(self, X):
-        n_samples, n_features = X.shape
+        [n_samples, n_features] = X.shape
         scores = self._predict_proba(X)
         return scores
 
     def predict_proba_one(self, x: dict):
         # TODO: (River) Implementation that function based on `predict_proba` function
-        pass
+        scores = [0] * self.n_classes
+        scores_tree = [0] * self.n_classes
+        x_list = list(x.values())
+
+        for tree in self.no_python.trees:
+            tree.use_aggregation = self.no_python.use_aggregation
+            predictions = tree.predict_proba_one(x_list, scores_tree)
+            for j in range(self.n_classes):
+                scores[j] += predictions[j]
+
+        scores = np.array(scores)
+        scores /= self.no_python.n_estimators
+        scores = scores.tolist()
+
+        return scores
 
     def predict_proba_many(self, X: "pd.DataFrame") -> "pd.DataFrame":
-        # TODO: (River) Implement that function using the `predict_proba` function
-        pass
+        return pd.DataFrame(self._predict_proba(X))
 
     def predict_proba(self, X):
         """Predicts the class probabilities for the given features vectors.
@@ -642,7 +597,7 @@ class AMFClassifier(AMFLearner, MiniBatchClassifier):
         return AMFLearner.predict_helper(self, X)
 
     # TODO: put in AMFLearner and reorganize
-    def predict_proba_tree(self, X, tree_index):
+    def predict_proba_tree(self, X: pd.DataFrame, tree_index):
         """Predicts the class probabilities for the given features vectors using a
         single tree at given index ``tree``. Should be used only for debugging or
         visualisation purposes.
@@ -667,7 +622,7 @@ class AMFClassifier(AMFLearner, MiniBatchClassifier):
                 "You must call `partial_fit` before calling `predict_proba`"
             )
         else:
-            n_samples, n_features = X.shape
+            [n_samples_batch, n_features] = X.shape
             if n_features != self.n_features:
                 raise ValueError(
                     "`partial_fit` was called with n_features=%d while `predict_proba` "
@@ -678,14 +633,13 @@ class AMFClassifier(AMFLearner, MiniBatchClassifier):
             if tree_index < 0 or tree_index >= self.n_estimators:
                 raise ValueError("`tree` must be between 0 and `n_estimators` - 1")
 
-            n_samples_batch, _ = X.shape
-            scores = np.empty((n_samples_batch, self.no_python.n_classes), dtype=float32)
+            scores = []
             tree = self.no_python.trees[tree_index]
             for i in range(n_samples_batch):
-                x_i = X[i]
+                x_i = X.iloc[i].to_numpy()
                 tree.use_aggregation = self.no_python.use_aggregation
-                scores[i] += tree.predict_proba_one(x_i, scores[i])
-            return scores
+                scores += tree.predict_proba_one(x_i, scores[i]).tolist()
+            return np.array(scores)
 
     @property
     def n_classes(self):

@@ -29,12 +29,11 @@ class MondrianTreeLeaf(Leaf, ABC):
         self.threshold = 0.0
         self.n_samples = 0
         self.n_features = n_features
-        self.memory_range_min = np.zeros(n_features)
-        self.memory_range_max = np.zeros(n_features)
+        self.memory_range_min = [0] * n_features
+        self.memory_range_max = [0] * n_features
 
     def copy(self, node):
         """Copies the node into the current one."""
-        # We must NOT copy the index
         self.is_leaf = node.is_leaf
         self.depth = node.depth
         self.parent = node.parent
@@ -91,6 +90,17 @@ class MondrianTreeLeaf(Leaf, ABC):
             )
 
     def get_child(self, x):
+        """
+        Get child node classifying x properly
+        Parameters
+        ----------
+        x:
+            sample to classify
+
+        Returns
+        -------
+
+        """
         if x[self.feature] <= self.threshold:
             return self.get_left()
         else:
@@ -115,18 +125,15 @@ class MondrianTreeLeafClassifier(MondrianTreeLeaf):
             node.depth = self.depth + 1
         return node
 
-    def score(self, idx_class, dirichlet):
+    def score(self, sample_class, dirichlet):
         """Computes the score of the node
 
         Parameters
         ----------
         dirichlet : `float`
 
-        n_samples : `int`
-            Number of samples in total
-
-        idx_class : `int`
-            Class index for which we want the score
+        sample_class : `int`
+            Class for which we want the score
 
         Returns
         -------
@@ -138,7 +145,7 @@ class MondrianTreeLeafClassifier(MondrianTreeLeaf):
         This uses Jeffreys prior with dirichlet parameter for smoothing
         """
 
-        count = self.counts[idx_class]
+        count = self.counts[sample_class]
         n_classes = self.n_classes
         # We use the Jeffreys prior with dirichlet parameter
         return (count + dirichlet) / (self.n_samples + dirichlet * n_classes)
@@ -229,7 +236,11 @@ class MondrianTreeBranch(Branch, ABC):
         self.parent = parent
 
     def next(self, x) -> typing.Union["Branch", "Leaf"]:
-        self.parent.get_child(x)
+        child = self.parent.get_child(x)
+        if child.is_leaf:
+            return child
+        else:
+            return MondrianTreeBranch(child)
 
     def most_common_path(self) -> typing.Tuple[int, typing.Union["Leaf", "Branch"]]:
         raise NotImplementedError
