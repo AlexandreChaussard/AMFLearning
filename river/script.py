@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from river.ensemble.amf_riverlike import AMFClassifier
+from river.ensemble.amf import AMFClassifier
 
 from river.datasets import Bananas
 
@@ -50,12 +50,12 @@ X, y = plot_dataset(stream)
 # Learning time
 
 total_samples = 600  # set the amount of samples to iterate through
-proportion_training = 0.8  # proportion of training samples
+proportion_training = 0.5  # proportion of training samples
 
 train_samples = proportion_training * total_samples  # set the amount of learning samples
 test_samples = (1 - proportion_training) * total_samples  # set the amount of test samples
 
-X_test, y_test = [], [] # arrays for the plot
+X_test, y_test = [], []  # arrays for the plot
 
 amf = AMFClassifier(2, n_estimators=10, step=1.0, use_aggregation=True, dirichlet=0.1)
 
@@ -64,8 +64,7 @@ for x_t, y_t in stream:
     if t < train_samples:
         amf.learn_one(x_t, int(y_t))  # learning sample (x_t, y_t)
     else:
-        scores = amf.predict_proba_one(x_t)
-        label = np.argmax(scores)  # predicting one's class
+        label = amf.predict_one(x_t)  # predicting one's class
 
         x_array = []
         for k in x_t:
