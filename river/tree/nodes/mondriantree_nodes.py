@@ -265,3 +265,86 @@ class NodesClassifier(Nodes):
         """
         self.copy_node(first, second)
         self.counts[second, :] = self.counts[first, :]
+
+spec_nodes_regressor = spec_nodes + [
+    # Current mean of the labels in the node
+    ("mean", float32[::1]),
+]
+
+class NodesRegressor(Nodes):
+    """A collection of nodes for regression.
+    Attributes
+    ----------
+    n_features : :obj:`int`
+        Number of features used during training.
+    n_nodes : :obj:`int`
+        Number of nodes saved in the collection.
+    n_samples_increment : :obj:`int`
+        The minimum amount of memory which is pre-allocated each time extra memory is
+        required for new nodes.
+    n_nodes_capacity : :obj:`int`
+        Number of nodes that can be currently saved in the object.
+    """
+
+    def __init__(self, n_features, n_samples_increment, n_nodes, n_nodes_capacity):
+        """Instantiates a `NodesClassifier` instance.
+        Parameters
+        ----------
+        n_features : :obj:`int`
+            Number of features used during training.
+        n_samples_increment : :obj:`int`
+            The minimum amount of memory which is pre-allocated each time extra memory
+            is required for new nodes.
+        """
+        super().__init__(n_features, n_samples_increment, n_nodes, n_nodes_capacity)
+        self.mean = np.zeros(self.n_nodes_capacity, dtype=float32)
+
+    def add_node_regressor(self, parent, time):
+        """Adds a node with specified parent and creation time.
+        Parameters
+        ----------
+        parent : :obj:`int`
+            The index of the parent of the new node.
+        time : :obj:`float`
+            The creation time of the new node.
+        Returns
+        -------
+        output : `int`
+            Index of the new node.
+        """
+        if self.n_nodes >= self.n_nodes_capacity:
+            # We don't have memory for this extra node, so let's create some
+            self.reserve_nodes_regressor()
+
+        return self.add_node(parent, time)
+
+    def reserve_nodes_regressor(self):
+        """Reserves memory for regressor nodes.
+        Parameters
+        ----------
+
+        """
+        self.reserve_nodes()
+        self.mean = resize_array(self.mean, self.n_nodes, self.n_nodes_capacity)
+
+    def copy_node_regressor(self, first, second):
+        """Copies the node at index `first` into the node at index `second`.
+        Parameters
+        ----------
+        first : :obj:`int`
+            The index of the node to be copied in ``second``
+        second : :obj:`int`
+            The index of the node containing the copy of ``first``
+        """
+        self.copy_node(first, second)
+        self.mean[second] = self.mean[first]
+
+
+
+
+
+
+
+
+
+
