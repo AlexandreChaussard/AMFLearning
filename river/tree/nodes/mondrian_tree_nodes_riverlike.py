@@ -19,14 +19,14 @@ class MondrianTreeLeaf(Leaf, ABC):
         # Generic Node attributes
         self.parent = parent
         self.time = time
-        self.is_leaf = False
+        self.is_leaf = True
         self.depth = 0
-        self.left = None
-        self.right = None
+        self._left = None
+        self._right = None
         self.feature = 0
-        self.weight = 0
+        self.weight = 0.0
         self.log_weight_tree = 0
-        self.threshold = 0
+        self.threshold = 0.0
         self.n_samples = 0
         self.n_features = n_features
         self.memory_range_min = np.zeros(n_features)
@@ -38,66 +38,67 @@ class MondrianTreeLeaf(Leaf, ABC):
         self.is_leaf = node.is_leaf
         self.depth = node.depth
         self.parent = node.parent
-        self.left = node.left
-        self.right = node.right
+        self._left = node.get_left()
+        self._right = node.get_right()
         self.feature = node.feature
         self.weight = node.weight
         self.log_weight_tree = node.log_weight_tree
         self.threshold = node.threshold
         self.time = node.time
 
+    def set_left(self, node):
+        self._left = node
+
+    def set_right(self, node):
+        self._right = node
+
+    @abstractmethod
+    def _get_child_node(self, node):
+        """get the child node and initialize it otherwise"""
+
+    def get_left(self):
+        """Get the left child"""
+        return self._get_child_node(self._left)
+
+    def get_right(self):
+        """Get the right child"""
+        return self._get_child_node(self._right)
+
     def set_depth(self, depth):
+        depth += 1
         self.depth = depth
 
         # if it's a leaf, no need to update the children too
         if self.is_leaf:
             return
 
-        if self.left:
-            self.left.set_depth(depth + 1)
-        if self.right:
-            self.right.set_depth(depth + 1)
+        self._left = self.get_left()
+        self._right = self.get_right()
+
+        self._left.set_depth(depth)
+        self._right.set_depth(depth)
 
     def update_weight_tree(self):
-
         if self.is_leaf:
             self.log_weight_tree = self.weight
         else:
-            left = self.left
-            left_weight = 0
-            if left is not None:
-                left_weight = left.log_weight_tree
-
-            right = self.right
-            right_weight = 0
-            if right is not None:
-                right_weight = right.log_weight_tree
-
+            left = self.get_left()
+            right = self.get_right()
             weight = self.weight
 
             self.log_weight_tree = log_sum_2_exp(
-                weight, left_weight + right_weight
+                weight, left.log_weight_tree + right.log_weight_tree
             )
 
     def get_child(self, x):
-        test = self.left
-        other = self.right
-
-        # Testing if the children are defined
-        if test is None:
-            test = self.right
-            other = self.left
-        if test is None:
-            return self
-
-        if x[test.feature] <= test.threshold:
-            return test
+        if x[self.feature] <= self.threshold:
+            return self.get_left()
         else:
-            return other
+            return self.get_right()
 
     @property
     def __repr__(self):
-        return f"{self.parent}, {self.time}"
+        return f"Node : {self.parent}, {self.time}"
 
 
 class MondrianTreeLeafClassifier(MondrianTreeLeaf):
@@ -106,6 +107,13 @@ class MondrianTreeLeafClassifier(MondrianTreeLeaf):
         super().__init__(parent, n_features, time)
         self.n_classes = n_classes
         self.counts = np.zeros(n_classes)
+
+    def _get_child_node(self, node):
+        if node is None:
+            node = MondrianTreeLeafClassifier(self, self.n_features, 0, self.n_classes)
+            node.is_leaf = True
+            node.depth = self.depth + 1
+        return node
 
     def score(self, idx_class, dirichlet):
         """Computes the score of the node
@@ -160,23 +168,21 @@ class MondrianTreeLeafClassifier(MondrianTreeLeaf):
         return n_samples == count
 
     def update_downwards(self, x_t, sample_class, dirichlet, use_aggregation, step, do_update_weight):
-        memory_range_min = self.memory_range_min
-        memory_range_max = self.memory_range_max
         # If it is the first sample, we copy the features vector into the min and
         # max range
         if self.n_samples == 0:
             for j in range(self.n_features):
                 x_tj = x_t[j]
-                memory_range_min[j] = x_tj
-                memory_range_max[j] = x_tj
+                self.memory_range_min[j] = x_tj
+                self.memory_range_max[j] = x_tj
         # Otherwise, we update the range
         else:
             for j in range(self.n_features):
                 x_tj = x_t[j]
-                if x_tj < memory_range_min[j]:
-                    memory_range_min[j] = x_tj
-                if x_tj > memory_range_max[j]:
-                    memory_range_max[j] = x_tj
+                if x_tj < self.memory_range_min[j]:
+                    self.memory_range_min[j] = x_tj
+                if x_tj > self.memory_range_max[j]:
+                    self.memory_range_max[j] = x_tj
 
         # TODO: we should save the sample here and do a bunch of stuff about
         #  memorization
@@ -219,27 +225,11 @@ class MondrianTreeBranch(Branch, ABC):
     """
 
     def __init__(self, parent: MondrianTreeLeaf):
-        super().__init__((parent.left, parent.right))
+        super().__init__((parent.get_left(), parent.get_right()))
         self.parent = parent
 
     def next(self, x) -> typing.Union["Branch", "Leaf"]:
-
-        left, right = self.parent.left, self.parent.right
-
-        test = left
-        other = right
-
-        # Testing if the children are defined
-        if test is None:
-            test = right
-            other = left
-        if test is None:
-            return self
-
-        if x[test.feature] <= test.threshold:
-            return test
-        else:
-            return other
+        self.parent.get_child(x)
 
     def most_common_path(self) -> typing.Tuple[int, typing.Union["Leaf", "Branch"]]:
         raise NotImplementedError

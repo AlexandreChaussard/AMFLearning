@@ -553,12 +553,14 @@ class AMFClassifier(AMFLearner, MiniBatchClassifier):
         )
 
     def _partial_fit(self, X, y):
+        print("Partial fit running...")
         n_samples_batch, n_features = X.shape
         # First, we save the new batch of data
         n_samples_before = self.no_python.samples.n_samples
         # Add the samples in the forest
         self.no_python.samples.add_samples(X, y)
         for i in range(n_samples_before, n_samples_before + n_samples_batch):
+            print(f"Tree {i} is fitting...")
             # Then we fit all the trees using all new samples
             for tree in self.no_python.trees:
                 tree.partial_fit(i)
