@@ -1,15 +1,13 @@
 from river.tree.mondrian_tree_classifier import MondrianTreeClassifier
-from river.utils.data_conversion import *
 
 from abc import ABC, abstractmethod
 
 from river.base.classifier import Classifier
-import pandas as pd
 
 
 class AMFLearner(ABC):
-    """Base class for Aggregated Mondrian Forest classifier and regressors for online
-    learning.
+    """
+    Base class for Aggregated Mondrian Forest classifier and regressors for online learning.
 
     Note
     ----
@@ -19,46 +17,44 @@ class AMFLearner(ABC):
 
     def __init__(
             self,
-            n_estimators,
-            step,
-            loss,
-            use_aggregation,
-            split_pure,
-            random_state,
+            n_estimators: int,
+            step: float,
+            loss: str,
+            use_aggregation: bool,
+            split_pure: bool,
+            random_state: int,
     ):
         """Instantiates a `AMFLearner` instance.
 
         Parameters
         ----------
-        n_estimators : :obj:`int`
+        n_estimators : int
             The number of trees in the forest.
 
-        step : :obj:`float`
+        step : float
             Step-size for the aggregation weights.
 
-        loss : :obj:`str`
+        loss : str
             The loss used for the computation of the aggregation weights.
 
-        use_aggregation : :obj:`bool`
+        use_aggregation : bool
             Controls if aggregation is used in the trees. It is highly recommended to
             leave it as `True`.
 
-        split_pure : :obj:`bool`
+        split_pure : bool
             Controls if nodes that contains only sample of the same class should be
             split ("pure" nodes). Default is `False`, namely pure nodes are not split,
             but `True` can be sometimes better.
 
-        random_state : :obj:`int` or :obj:`None`
+        random_state : int or None
             Controls the randomness involved in the trees.
 
         """
 
-        # This is yet to be defined by the dataset
+        # This is yet to be defined by the dataset since we need to know about the amount of features namely
         self._forest = None
-
-        # We will instantiate the numba class when data is passed to
-        # `partial_fit`, since we need to know about `n_features` among others things
         self._n_features = None
+
         self.n_estimators = n_estimators
         self.step = step
         self.loss = loss
@@ -66,9 +62,18 @@ class AMFLearner(ABC):
         self.split_pure = split_pure
         self.random_state = random_state
 
+    def is_trained(self) -> bool:
+        """
+        Says whether the model has been trained at least once before.
+        Returns
+        -------
+        trained: bool
+        """
+        return self._forest is not None
+
     @property
     def n_features(self):
-        """:obj:`int`: Number of features used during training."""
+        """int: Number of features used during training."""
         return self._n_features
 
     @n_features.setter
@@ -77,14 +82,14 @@ class AMFLearner(ABC):
 
     @property
     def n_estimators(self):
-        """:obj:`int`: Number of trees in the forest."""
+        """int: Number of trees in the forest."""
         return self._n_estimators
 
     @n_estimators.setter
     def n_estimators(self, val):
-        if self._forest:
+        if self.is_trained():
             raise ValueError(
-                "You cannot modify `n_estimators` after calling `partial_fit`"
+                "You cannot modify `n_estimators` after calling `learn_one`"
             )
         else:
             if not isinstance(val, int):
@@ -96,13 +101,13 @@ class AMFLearner(ABC):
 
     @property
     def step(self):
-        """:obj:`float`: Step-size for the aggregation weights."""
+        """float: Step-size for the aggregation weights."""
         return self._step
 
     @step.setter
     def step(self, val):
-        if self._forest:
-            raise ValueError("You cannot modify `step` after calling `partial_fit`")
+        if self.is_trained():
+            raise ValueError("You cannot modify `step` after calling `learn_one`")
         else:
             if not isinstance(val, float):
                 raise ValueError("`step` must be of type `float`")
@@ -113,14 +118,14 @@ class AMFLearner(ABC):
 
     @property
     def use_aggregation(self):
-        """:obj:`bool`: Controls if aggregation is used in the trees."""
+        """bool: Controls if aggregation is used in the trees."""
         return self._use_aggregation
 
     @use_aggregation.setter
     def use_aggregation(self, val):
-        if self._forest:
+        if self.is_trained():
             raise ValueError(
-                "You cannot modify `use_aggregation` after calling `partial_fit`"
+                "You cannot modify `use_aggregation` after calling `learn_one`"
             )
         else:
             if not isinstance(val, bool):
@@ -130,15 +135,14 @@ class AMFLearner(ABC):
 
     @property
     def split_pure(self):
-        """:obj:`bool`: Controls if nodes that contains only sample of the same class
-        should be split."""
+        """bool: Controls if nodes that contains only sample of the same class should be split."""
         return self._split_pure
 
     @split_pure.setter
     def split_pure(self, val):
-        if self._forest:
+        if self.is_trained():
             raise ValueError(
-                "You cannot modify `split_pure` after calling `partial_fit`"
+                "You cannot modify `split_pure` after calling `learn_one`"
             )
         else:
             if not isinstance(val, bool):
@@ -148,7 +152,7 @@ class AMFLearner(ABC):
 
     @property
     def loss(self):
-        """:obj:`str`: The loss used for the computation of the aggregation weights."""
+        """str: The loss used for the computation of the aggregation weights."""
         return "log"
 
     @loss.setter
@@ -157,7 +161,7 @@ class AMFLearner(ABC):
 
     @property
     def random_state(self):
-        """:obj:`int` or :obj:`None`: Controls the randomness involved in the trees."""
+        """int or None: Controls the randomness involved in the trees."""
         if self._random_state == -1:
             return None
         else:
@@ -165,9 +169,9 @@ class AMFLearner(ABC):
 
     @random_state.setter
     def random_state(self, val):
-        if self._forest:
+        if self.is_trained():
             raise ValueError(
-                "You cannot modify `random_state` after calling `partial_fit`"
+                "You cannot modify `random_state` after calling `learn_one`"
             )
         else:
             if val is None:
@@ -180,6 +184,17 @@ class AMFLearner(ABC):
                 self._random_state = val
 
     def check_features_consistency(self, x: dict):
+        """
+        Makes sure that the features are consistent and set it to the first encountered value is no standard is set.
+        Parameters
+        ----------
+        x: dict
+            Feature vector
+
+        Returns
+        -------
+
+        """
         n_features = len(list(x.keys()))
         if self._n_features is None:
             self._n_features = n_features
@@ -191,7 +206,8 @@ class AMFLearner(ABC):
 
 
 class AMFClassifier(AMFLearner, Classifier):
-    """Aggregated Mondrian Forest classifier for online learning. This algorithm
+    """
+    Aggregated Mondrian Forest classifier for online learning. This algorithm
     is truly online, in the sense that a single pass is performed, and that predictions
     can be produced anytime.
 
@@ -216,7 +232,7 @@ class AMFClassifier(AMFLearner, Classifier):
     Note
     ----
     All the parameters of ``AMFClassifier`` become **read-only** after the first call
-    to ``partial_fit``
+    to ``learn_one``
 
     References
     ----------
@@ -226,14 +242,14 @@ class AMFClassifier(AMFLearner, Classifier):
 
     def __init__(
             self,
-            n_classes,
-            n_estimators=10,
-            step=1.0,
-            loss="log",
-            use_aggregation=True,
-            dirichlet=None,
-            split_pure=False,
-            random_state=None,
+            n_classes: int,
+            n_estimators: int = 10,
+            step: float = 1.0,
+            loss: str = "log",
+            use_aggregation: bool = True,
+            dirichlet: float = None,
+            split_pure: bool = False,
+            random_state: int = None,
     ):
         """Instantiates a `AMFClassifier` instance.
 
@@ -291,20 +307,13 @@ class AMFClassifier(AMFLearner, Classifier):
 
         self._classes = set(range(n_classes))
 
-    def _extra_y_test(self, y: pd.Series):
-        if y.min() < 0:
-            raise ValueError("All the values in `y` must be non-negative")
-        y_max = y.max()
-        if y_max not in self._classes:
-            raise ValueError("n_classes=%d while y.max()=%d" % (self.n_classes, y_max))
-
     def _initialize_trees(self):
-        trees_iteration = np.empty(0, dtype=np.uint32)
-        trees_n_nodes = np.empty(0, dtype=np.uint32)
-        trees_n_nodes_capacity = np.empty(0, dtype=np.uint32)
-        n_samples = 0
-        n_samples_capacity = 0
-        samples = {"feature": [], "label": []}
+        """
+        Initialize the forest
+        Returns
+        -------
+
+        """
         self.iteration = 0
         self._forest = [
             MondrianTreeClassifier(
@@ -321,6 +330,24 @@ class AMFClassifier(AMFLearner, Classifier):
         ]
 
     def learn_one(self, x: dict, y: int):
+        """
+        Learns the sample (x, y)
+
+        Parameters
+        ----------
+        x: dict
+            Feature vector
+        y: int
+            Label
+
+        Returns
+        -------
+        AMFClassifier
+        """
+
+        # Checking that y is defined nicely for the trees computation
+        if not isinstance(y, int) or y < 0:
+            raise Exception("Labels must be positive integers.")
 
         # Checking the features consistency
         self.check_features_consistency(x)
@@ -334,16 +361,33 @@ class AMFClassifier(AMFLearner, Classifier):
         self.iteration += 1
         return self
 
-    def predict_proba_one(self, x: dict) -> dict[int, int]:
-        scores = {}  # [0] * self.n_classes
-        scores_tree = {}  # [0] * self.n_classes
+    def predict_proba_one(self, x: dict) -> dict[int, float]:
+        """
+        Predicts the probability of each class for the sample x
+
+        Parameters
+        ----------
+        x: dict
+            Feature vector
+
+        Returns
+        -------
+        scores: dict
+        """
+
+        # Checking that the model has been trained once at least
+        if not self.is_trained():
+            raise Exception("No sample has been learnt yet. You need to train your model before making predictions.")
+
+        # initialize the scores
+        scores = {}
         for j in range(self.n_classes):
             scores[j] = 0
-            scores_tree[j] = 0
 
+        # Simply computes the prediction for each tree and average it
         for tree in self._forest:
             tree.use_aggregation = self.use_aggregation
-            predictions = tree.predict_proba_one(x, scores_tree)
+            predictions = tree.predict_proba_one(x)
             for j in range(self.n_classes):
                 scores[j] += predictions[j] / self.n_estimators
 
@@ -351,7 +395,7 @@ class AMFClassifier(AMFLearner, Classifier):
 
     @property
     def n_classes(self):
-        """:obj:`int`: Number of expected classes in the labels."""
+        """int: Number of expected classes in the labels."""
         return self._n_classes
 
     @n_classes.setter
@@ -370,15 +414,14 @@ class AMFClassifier(AMFLearner, Classifier):
 
     @property
     def dirichlet(self):
-        """:obj:`float` or :obj:`None`: Regularization level of the class
-        frequencies."""
+        """float or None: Regularization level of the class frequencies."""
         return self._dirichlet
 
     @dirichlet.setter
     def dirichlet(self, val):
-        if self._forest:
+        if self.is_trained():
             raise ValueError(
-                "You cannot modify `dirichlet` after calling `partial_fit`"
+                "You cannot modify `dirichlet` after calling `learn_one`"
             )
         else:
             if not isinstance(val, float):
@@ -390,7 +433,7 @@ class AMFClassifier(AMFLearner, Classifier):
 
     @property
     def loss(self):
-        """:obj:`str`: The loss used for the computation of the aggregation weights."""
+        """str: The loss used for the computation of the aggregation weights."""
         return "log"
 
     @loss.setter

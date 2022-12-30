@@ -6,7 +6,6 @@ from river.utils import data_conversion as conversion
 
 from river.datasets import Bananas
 
-
 def plot_classes(X_test, y_test, X_train, y_train, title=None):
     fig, axs = plt.subplots()
 
@@ -50,8 +49,8 @@ X, y = plot_dataset(stream)
 
 # Learning time
 
-total_samples = 1000  # set the amount of samples to iterate through
-proportion_training = 0.8  # proportion of training samples
+total_samples = 500 # set the amount of samples to iterate through
+proportion_training = 1  # proportion of training samples
 
 train_samples = proportion_training * total_samples  # set the amount of learning samples
 test_samples = (1 - proportion_training) * total_samples  # set the amount of test samples
@@ -89,8 +88,8 @@ def plot_decision_areas(X, amf):
     fig, axs = plt.subplots()
 
     # define bounds of the domain
-    min1, max1 = X[:, 0].min() - 0.1, X[:, 0].max() + 0.1
-    min2, max2 = X[:, 1].min() - 0.1, X[:, 1].max() + 0.1
+    min1, max1 = X[:, 0].min(), X[:, 0].max()
+    min2, max2 = X[:, 1].min(), X[:, 1].max()
     # define the x and y scale
     x1grid = np.arange(min1, max1, 0.1)
     x2grid = np.arange(min2, max2, 0.1)
@@ -115,7 +114,7 @@ def plot_decision_areas(X, amf):
     # reshape the predictions back into a grid
     zz = yhat.reshape(xx.shape)
     # plot the grid of x, y and z values as a surface
-    c = axs.contourf(xx, yy, zz, cmap='RdBu', vmin=0, vmax=1, levels=100)
+    c = axs.contourf(xx, yy, zz, cmap='RdBu', vmin=0, vmax=1, levels=40)
     # add a legend, called a color bar
     fig.suptitle("Decision areas of AMF")
     plt.colorbar(c)
