@@ -1,5 +1,5 @@
 from abc import ABC
-from river.tree.nodes.mondrian_tree_nodes import MondrianTreeBranch
+from river.tree.mondrian.mondrian_tree_nodes import MondrianTreeBranch
 
 
 class MondrianTree(ABC):
@@ -17,7 +17,7 @@ class MondrianTree(ABC):
         step: float,
             Step parameter of the tree
         loss: str
-            Default is "log"
+            Set to "log" for classifiers
         use_aggregation: bool,
             Should it use aggregation
         split_pure: bool,
@@ -37,7 +37,7 @@ class MondrianTree(ABC):
             self,
             n_features: int,
             step: float,
-            loss,
+            loss: str,
             use_aggregation: bool,
             split_pure: bool,
             iteration: int,

@@ -1,9 +1,28 @@
 from random import uniform
+from random import choices
 from math import log
 from math import exp
+from math import fsum
 
 
 def sample_discrete(distribution):
+    """
+    Samples an index according to the given discrete distribution
+    Parameters
+    ----------
+    distribution: list[float]
+        Weights of the distribution at each given index
+
+    Returns
+    -------
+    index: int
+    """
+    size = len(distribution)
+    indexes = list(range(size))
+    return choices(indexes, distribution, k=1)[0]
+
+
+def old_sample_discrete(distribution):
     """Samples according to the given discrete distribution.
 
     Parameters

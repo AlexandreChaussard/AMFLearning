@@ -2,13 +2,12 @@ from math import exp
 from math import fsum
 
 from random import uniform
+from random import choices
 
-from river.tree.mondrian_tree import MondrianTree
+from river.tree.mondrian.mondrian_tree import MondrianTree
 
-from river.utils.mondrian_utils import sample_discrete
-
-from river.tree.nodes.mondrian_tree_nodes import MondrianTreeBranchClassifier
-from river.tree.nodes.mondrian_tree_nodes import MondrianTreeLeafClassifier
+from river.tree.mondrian.mondrian_tree_nodes import MondrianTreeBranchClassifier
+from river.tree.mondrian.mondrian_tree_nodes import MondrianTreeLeafClassifier
 
 
 class MondrianTreeClassifier(MondrianTree):
@@ -25,9 +24,6 @@ class MondrianTreeClassifier(MondrianTree):
             Number of features of the data in entry
         step: float
             Step of the tree
-        loss: str
-            Default is "log".
-            Loss to minimize
         use_aggregation: bool
             Whether to use aggregation weighting techniques or not.
         dirichlet: float
@@ -43,7 +39,6 @@ class MondrianTreeClassifier(MondrianTree):
             n_classes: int,
             n_features: int,
             step: float,
-            loss,
             use_aggregation: bool,
             dirichlet: float,
             split_pure: bool,
@@ -53,7 +48,7 @@ class MondrianTreeClassifier(MondrianTree):
         super().__init__(
             n_features=n_features,
             step=step,
-            loss=loss,
+            loss="log",
             use_aggregation=use_aggregation,
             split_pure=split_pure,
             iteration=iteration,
@@ -62,6 +57,7 @@ class MondrianTreeClassifier(MondrianTree):
         self.dirichlet = dirichlet
 
         # Initialization of the root of the tree
+        # It's the root so it doesn't have any parent (hence None)
         self.tree = MondrianTreeBranchClassifier(MondrianTreeLeafClassifier(None, self.n_features, 0.0, self.n_classes))
 
         # Training attributes
@@ -283,7 +279,7 @@ class MondrianTreeClassifier(MondrianTree):
 
                     # Sample the feature at random with a probability
                     # proportional to the range extensions
-                    feature = sample_discrete(self.intensities)
+                    feature = choices(list(range(self.n_features)), self.intensities, k=1)[0]
                     x_tf = self._x[feature]
 
                     # Is it a right extension of the node ?

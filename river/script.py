@@ -116,7 +116,7 @@ def plot_decision_areas(X, amf):
     # plot the grid of x, y and z values as a surface
     c = axs.contourf(xx, yy, zz, cmap='RdBu', vmin=0, vmax=1, levels=40)
     # add a legend, called a color bar
-    fig.suptitle("Decision areas of AMF")
+    fig.suptitle("Decision areas of AMF\n on Bananas Dataset")
     plt.colorbar(c)
 
 
