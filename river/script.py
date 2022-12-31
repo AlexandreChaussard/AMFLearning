@@ -6,6 +6,7 @@ from river.utils import data_conversion as conversion
 
 from river.datasets import Bananas
 
+
 def plot_classes(X_test, y_test, X_train, y_train, title=None):
     fig, axs = plt.subplots()
 
@@ -49,7 +50,7 @@ X, y = plot_dataset(stream)
 
 # Learning time
 
-total_samples = 500 # set the amount of samples to iterate through
+total_samples = 500  # set the amount of samples to iterate through
 proportion_training = 1  # proportion of training samples
 
 train_samples = proportion_training * total_samples  # set the amount of learning samples
@@ -62,7 +63,7 @@ amf = AMFClassifier(2, n_estimators=10, step=1.0, use_aggregation=True, dirichle
 t = 0
 for x_t, y_t in stream:
     if t < train_samples:
-        amf.learn_one(x_t, int(y_t))  # learning sample (x_t, y_t)
+        amf.learn_one(x_t, y_t)  # learning sample (x_t, y_t)
     else:
         score = list(amf.predict_proba_one(x_t).values())
         label = amf.predict_one(x_t)  # predicting one's class
@@ -84,7 +85,6 @@ plot_classes(X_test, y_pred, X, y, title="Prediction with AMFClassifier")
 
 
 def plot_decision_areas(X, amf):
-
     fig, axs = plt.subplots()
 
     # define bounds of the domain
