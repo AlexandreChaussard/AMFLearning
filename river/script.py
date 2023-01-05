@@ -58,7 +58,7 @@ test_samples = (1 - proportion_training) * total_samples  # set the amount of te
 
 X_test, y_pred, scores = [], [], []  # arrays for the plot
 
-amf = AMFClassifier(2, n_estimators=10, step=1.0, use_aggregation=True, dirichlet=0.2)
+amf = AMFClassifier(2, n_estimators=10, step=1.0, use_aggregation=True, dirichlet=0.2, seed=None)
 
 t = 0
 for x_t, y_t in stream:
