@@ -266,10 +266,12 @@ class NodesClassifier(Nodes):
         self.copy_node(first, second)
         self.counts[second, :] = self.counts[first, :]
 
+
 spec_nodes_regressor = spec_nodes + [
     # Current mean of the labels in the node
     ("mean", float32[::1]),
 ]
+
 
 class NodesRegressor(Nodes):
     """A collection of nodes for regression.
@@ -338,13 +340,3 @@ class NodesRegressor(Nodes):
         """
         self.copy_node(first, second)
         self.mean[second] = self.mean[first]
-
-
-
-
-
-
-
-
-
-
