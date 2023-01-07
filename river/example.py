@@ -5,7 +5,7 @@ from river.datasets import Bananas
 
 dataset = Bananas().take(500)
 
-model = ensemble.AMFClassifier(n_classes=2, n_estimators=10, use_aggregation=True, dirichlet=0.1)
+model = ensemble.AMFClassifier(n_classes=2, n_estimators=10, use_aggregation=True, dirichlet=0.1, seed=1)
 
 metric = metrics.Accuracy()
 
