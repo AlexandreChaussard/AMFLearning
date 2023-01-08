@@ -4,6 +4,8 @@ from river.utils.data_conversion import *
 from abc import ABC, abstractmethod
 
 from river.base.classifier import Classifier
+from river.base.regressor import Regressor
+
 import pandas as pd
 
 
@@ -399,3 +401,28 @@ class AMFClassifier(AMFLearner, Classifier):
 
     def __repr__(self):
         return f"AMFClassifier[n_classes={self.n_classes}; n_features={self.n_features}; n_models={self.n_estimators}]"
+
+class AMFRegressor(AMFLearner, Regressor):
+    """Aggregated Mondrian Forest regressor for online learning. This algorithm
+        is truly online, in the sense that a single pass is performed, and that predictions
+        can be produced anytime.
+        Each node in a tree predicts according to the average of the labels
+        it contains. The prediction for a sample is computed as the aggregated predictions
+        of all the subtrees along the path leading to the leaf node containing the sample.
+        The aggregation weights are exponential weights with learning rate ``step`` and loss
+        ``loss`` when ``use_aggregation`` is ``True``.
+        This computation is performed exactly thanks to a context tree weighting algorithm.
+        More details can be found in the paper cited in references below.
+        The final predictions are the average of the predictions of each of the
+        ``n_estimators`` trees in the forest.
+        Note
+        ----
+        All the parameters of ``AMFRegressor`` become **read-only** after the first call
+        to ``partial_fit``
+        References
+        ----------
+        J. Mourtada, S. Gaiffas and E. Scornet, *AMF: Aggregated Mondrian Forests for Online Learning*, arXiv:1906.10529, 2019
+        """
+
+    
+
