@@ -1,6 +1,6 @@
 from abc import abstractmethod
 
-from river.tree.nodes.mondriantree_nodes import *
+from river.tree.nodes.mondriantree_nodes_numpy import *
 from river.utils.mondriantree_samples import SamplesCollection
 
 spec_tree = [

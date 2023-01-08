@@ -1,9 +1,9 @@
 from numpy.random import uniform
 
-from river.tree.mondrian_tree import MondrianTree
-from river.tree.mondrian_tree import spec_tree
+from river.tree.mondrian_tree_numpy import MondrianTree
+from river.tree.mondrian_tree_numpy import spec_tree
 
-from river.tree.nodes.mondriantree_nodes import *
+from river.tree.nodes.mondriantree_nodes_numpy import *
 from river.utils.mondriantree_samples import *
 
 spec_tree_classifier = spec_tree + [
