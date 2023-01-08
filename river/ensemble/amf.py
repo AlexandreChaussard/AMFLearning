@@ -4,6 +4,7 @@ from river import base
 from river.base.classifier import Classifier
 from river.base.regressor import Regressor
 from river.tree.mondrian.mondrian_tree_classifier import MondrianTree, MondrianTreeClassifier
+from river.tree.mondrian.mondrian_tree_regressor import MondrianTree, MondrianTreeRegressor
 
 
 class AMFLearner(ABC):
