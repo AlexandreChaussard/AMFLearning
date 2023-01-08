@@ -4,7 +4,7 @@ from river import base
 from river.base.classifier import Classifier
 from river.base.regressor import Regressor
 from river.tree.mondrian.mondrian_tree_classifier import MondrianTree, MondrianTreeClassifier
-from river.tree.mondrian.mondrian_tree_regressor import MondrianTree, MondrianTreeRegressor
+from river.tree.mondrian.mondrian_tree_regressor import  MondrianTreeRegressor
 
 
 class AMFLearner(ABC):
@@ -270,6 +270,7 @@ class AMFClassifier(AMFLearner, Classifier):
 
         return scores
 
+
 class AMFRegressor(AMFLearner, Regressor):
     """Aggregated Mondrian Forest regressor for online learning. This algorithm
         is truly online, in the sense that a single pass is performed, and that predictions
@@ -291,5 +292,107 @@ class AMFRegressor(AMFLearner, Regressor):
         ----------
         J. Mourtada, S. Gaiffas and E. Scornet, *AMF: Aggregated Mondrian Forests for Online Learning*, arXiv:1906.10529, 2019
         """
+
+    def __init__(
+            self,
+            n_features: int = 1,
+            step: float = 0.1,
+            use_aggregation: bool = True,
+            split_pure: bool = False,
+            iteration: int = 0,
+            seed: int = None,
+    ):
+
+        super().__init__(
+            n_features=n_features,
+            step=step,
+            loss="least-squares",
+            use_aggregation=use_aggregation,
+            split_pure=split_pure,
+            iteration=iteration,
+            seed=seed,
+        )
+
+    def _initialize_trees(self):
+        """
+        Initialize the forest
+        """
+
+        # If the number of features is 0, it means we don't know the number of features
+        if self._n_features == 0:
+            raise Exception(
+                "You can't initialize the forest without knowning the number of features of the problem. "
+                "Please learn a data point first."
+            )
+
+        self.iteration = 0
+        self._forest: list[MondrianTreeRegressor] = []
+        for i in range(self.n_estimators):
+            seed = self.seed
+            # We don't want to have the same stochastic scheme for each tree, or it'll break the randomness
+            # Hence we introduce a new seed for each, that is derived of the given seed by a deterministic process
+            if seed is not None:
+                seed += i
+            tree = MondrianTreeRegressor(
+                self._n_features,
+                self.step,
+                self.use_aggregation,
+                self.split_pure,
+                self.iteration,
+                seed,
+            )
+            self._forest.append(tree)
+
+    def learn_one(self, x, y):
+        """
+        Learns the sample (x, y)
+
+        Parameters
+        ----------
+        x
+            Feature vector of the sample.
+        y
+            Label of the sample.
+
+        Returns
+        -------
+        AMFRegressor
+        """
+
+        # Checking the features consistency
+        self._check_features_consistency(x)
+
+        # Checking if the forest has been created
+        if not self.is_trained():
+            self._initialize_trees()
+        # we fit all the trees using the new sample
+        for tree in self._forest:
+            tree.learn_one(x, y)
+        self.iteration += 1
+        return self
+
+    def predict_one(self, x):
+        """
+        Predicts the probability of each class for the sample x
+
+        Parameters
+        ----------
+        x
+            Feature vector
+        """
+
+        # Checking that the model has been trained once at least
+        if not self.is_trained():
+            raise Exception(
+                "No sample has been learnt yet. You need to train your model before making predictions."
+            )
+
+        # Simply computes the prediction for each tree and average it
+        for tree in self._forest:
+            tree.use_aggregation = self.use_aggregation
+            prediction = tree.predict_one(x)
+            prediction += prediction / self.n_estimators
+
+        return prediction
 
 
