@@ -68,7 +68,7 @@ class MondrianTreeRegressor(MondrianTree):
             MondrianLeafRegressor(None, n_features, 0.0)
         )
 
-    def _predict(self, node) -> float:
+    def _predict(self, node):
         """
         Computes the predictions scores of the node regarding all the classes scores.
 
@@ -80,7 +80,7 @@ class MondrianTreeRegressor(MondrianTree):
         """
         return node.predict()
 
-    def _loss(self, node) -> float:
+    def _loss(self, node):
         """
         Computes the loss for the given node regarding the current label
 
@@ -91,7 +91,7 @@ class MondrianTreeRegressor(MondrianTree):
         """
         return node.loss(self._y)
 
-    def _update_weight(self, node) -> float:
+    def _update_weight(self, node):
         """
         Updates the weight of the node regarding the current label with the tree parameters
 
