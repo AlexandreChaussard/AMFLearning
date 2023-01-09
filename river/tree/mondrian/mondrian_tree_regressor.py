@@ -133,7 +133,10 @@ class MondrianTreeRegressor(MondrianTree):
         # If x_t extends the current range of the node
         if extensions_sum > 0:
             # Sample an exponential with intensity = extensions_sum
-            T = math.exp(1 / extensions_sum)
+            try:
+                T = math.exp(1 / extensions_sum)
+            except OverflowError:
+                T = sys.float_info.max
             time = node.time
             # Splitting time of the node (if splitting occurs)
             split_time = time + T
@@ -407,24 +410,3 @@ class MondrianTreeRegressor(MondrianTree):
             current = current.parent
 
         return prediction
-
-    """def tree_regressor_weighted_depth(tree, x_t, use_aggregation):
-        nodes = tree.nodes
-        depths = nodes.depth
-        weights = nodes.weight
-        log_weight_trees = nodes.log_weight_tree
-        leaf = tree_get_leaf(tree, x_t)
-        depth = depths[leaf]
-        if not use_aggregation:
-            return float32(depth)
-        current = leaf
-        while True:
-            weight = weights[current]
-            log_weight_tree = log_weight_trees[current]
-            w = exp(weight - log_weight_tree)
-            depth_new = depths[current]
-            depth = 0.5 * w * depth_new + (1 - 0.5 * w) * depth
-            if current == 0:
-                break
-            current = nodes.parent[current]
-        return """

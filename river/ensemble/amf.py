@@ -295,21 +295,19 @@ class AMFRegressor(AMFLearner, Regressor):
 
     def __init__(
             self,
-            n_features: int = 1,
+            n_estimators: int = 10,
             step: float = 0.1,
             use_aggregation: bool = True,
             split_pure: bool = False,
-            iteration: int = 0,
             seed: int = None,
     ):
 
         super().__init__(
-            n_features=n_features,
+            n_estimators=n_estimators,
             step=step,
             loss="least-squares",
             use_aggregation=use_aggregation,
             split_pure=split_pure,
-            iteration=iteration,
             seed=seed,
         )
 

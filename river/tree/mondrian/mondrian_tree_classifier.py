@@ -440,7 +440,7 @@ class MondrianTreeClassifier(MondrianTree):
         # We turn the indexes into the labels names
         classes_name = list(self._classes.keys())
 
-        def set_scores(values: list[float]):
+        def set_scores(values):
             """Turns the list of score values into the dictionary of scores output"""
             for k in range(self.n_classes):
                 scores[classes_name[k]] = values[k]

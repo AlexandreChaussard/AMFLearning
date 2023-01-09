@@ -7,9 +7,13 @@ are interested in infinite synthetic data generators.
 
 """
 from . import base, synth
+from .airline_passengers import AirlinePassengers
 from .bananas import Bananas
+from .bikes import Bikes
 
 __all__ = [
+    "AirlinePassengers",
     "Bananas",
+    "Bikes",
     "base",
 ]
