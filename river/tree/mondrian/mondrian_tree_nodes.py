@@ -396,7 +396,6 @@ class MondrianLeafRegressor(MondrianLeaf):
 
         """
         node = MondrianLeafRegressor(self, self.n_features, 0)
-        node.is_leaf = True
         node.depth = self.depth + 1
         return node
 
@@ -412,17 +411,17 @@ class MondrianLeafRegressor(MondrianLeaf):
         """
         return self.mean
 
-    def loss(self, sample_class):
-        r = self.predict() - sample_class
+    def loss(self, sample_label):
+        r = self.predict() - sample_label
         return r * r / 2
 
-    def update_weight(self, sample_class, use_aggregation, step):
-        loss_t = self.loss(sample_class)
+    def update_weight(self, sample_label, use_aggregation, step):
+        loss_t = self.loss(sample_label)
         if use_aggregation:
             self.weight -= step * loss_t
         return loss_t
 
-    def update_downwards(self, x_t, y_t, use_aggregation, step, do_update_weight):
+    def update_downwards(self, x_t, sample_label, use_aggregation, step, do_update_weight):
         if self.n_samples == 0:
             for j in range(self.n_features):
                 x_tj = x_t[j]
@@ -439,10 +438,10 @@ class MondrianLeafRegressor(MondrianLeaf):
         self.n_samples += 1
 
         if do_update_weight:
-            self.update_weight(y_t, use_aggregation, step)
+            self.update_weight(sample_label, use_aggregation, step)
 
         # Update the mean of the labels in the node online
-        self.mean = (self.n_samples * self.mean + y_t) / (self.n_samples + 1)
+        self.mean = (self.n_samples * self.mean + sample_label) / (self.n_samples + 1)
 
     def range(self, j):
         return (
@@ -451,7 +450,7 @@ class MondrianLeafRegressor(MondrianLeaf):
         )
 
     def range_extension(self, x_t, extensions):
-        extensions_sum = 0
+        extensions_sum = 0.0
         for j in range(self.n_features):
             x_tj = x_t[j]
             feature_min_j, feature_max_j = self.range(j)

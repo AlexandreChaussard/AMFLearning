@@ -360,7 +360,7 @@ class MondrianTreeRegressor(MondrianTree):
         # Setting current sample
         # We change x in a list here to make computations easier afterwards
         self._x = list(x.values())
-        # Current sample label index
+        # Current sample label
         self._y = y
 
         # Learning step

@@ -296,7 +296,7 @@ class AMFRegressor(AMFLearner, Regressor):
     def __init__(
             self,
             n_estimators: int = 10,
-            step: float = 0.1,
+            step: float = 1.0,
             use_aggregation: bool = True,
             split_pure: bool = False,
             seed: int = None,
@@ -381,15 +381,13 @@ class AMFRegressor(AMFLearner, Regressor):
 
         # Checking that the model has been trained once at least
         if not self.is_trained():
-            raise Exception(
-                "No sample has been learnt yet. You need to train your model before making predictions."
-            )
-
+            return None
         # Simply computes the prediction for each tree and average it
+        prediction = 0
         for tree in self._forest:
             tree.use_aggregation = self.use_aggregation
-            prediction = tree.predict_one(x)
-            prediction += prediction / self.n_estimators
+            prediction += tree.predict_one(x)
+        prediction = prediction / self.n_estimators
 
         return prediction
 
